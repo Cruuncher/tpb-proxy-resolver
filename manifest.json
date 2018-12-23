@@ -8,7 +8,7 @@
     },
     "permissions": ["storage", "declarativeContent", "https://*/"],
     "page_action": {
-        "default_popup": "popup.html",
+        "default_popup": "popup/popup.html",
         "default_icon": {
             "128": "images/logo.png"
           }
@@ -16,6 +16,6 @@
     "icons": {
         "128": "images/logo.png"
     },
-    "options_page": "options.html",
+    "options_page": "options/options.html",
     "manifest_version": 2
   }
