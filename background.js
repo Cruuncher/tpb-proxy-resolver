@@ -82,13 +82,25 @@ function resolveBySaved(storage) {
 } 
 
 function resolveByLookup(storage) {
+    proxyBayRequest(storage, function(doc) {
+        handleProxyBayDocument(doc, storage, advanceToTPB);
+    }, function(status) {
+        alert("Proxy List Down. Status: " + status);
+    });
+}
+
+function proxyBayRequest(storage, success, fail=null) {
+    if(fail === null){
+        fail = function () {};
+    }
+
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
             if(xhr.status === 200) {
-                handleProxyBayDocument(xhr.responseXML, storage, advanceToTPB);
+                success(xhr.responseXML);
             } else {
-                alert("Proxy List Down");
+                fail(xhr.status);
             }
         }
     } 
@@ -96,27 +108,19 @@ function resolveByLookup(storage) {
     xhr.responseType = "document";
     xhr.timeout = 2000;
     xhr.send(null);
+
 }
 
 function quietLookup(storage) {
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            if(xhr.status === 200) {
-                handleProxyBayDocument(xhr.responseXML, storage, function(url) {
-                    checkURL(url, setSavedURL, function(url) {
-                        banURL(url, function() {
-                            withStorage(quietLookup);
-                        });
-                    });
+    proxyBayRequest(storage, function(doc) {
+        handleProxyBayDocument(doc, storage, function(url) {
+            checkURL(url, setSavedURL, function(url) {
+                banURL(url, function() {
+                    withStorage(quietLookup);
                 });
-            }
-        }
-    } 
-    xhr.open('GET', 'https://proxybay.github.io/');
-    xhr.responseType = "document";
-    xhr.timeout = 2000;
-    xhr.send(null);
+            });
+        });
+    });
 }
 
 function handleProxyBayDocument(doc, storage, callback) {
