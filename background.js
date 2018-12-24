@@ -1,10 +1,12 @@
-function banURL(url) {
+function banURL(url, callback = null) {
+    if(callback === null) {
+        callback = function () {};
+    }
     chrome.storage.local.get({"banned_urls": []}, function(items) {
         banned_urls = items['banned_urls'];
         banned_urls.push(url);
         chrome.storage.local.set({"banned_urls": banned_urls});
-        alert("banned " + url)
-    });
+    }, callback);
 }
 
 function unbanURL(url) {
@@ -20,6 +22,10 @@ function unbanURL(url) {
     });
 }
 
+function clearSaved() {
+    chrome.storage.local.remove(["saved_url", "saved_url_time"]);
+}
+
 function setSavedURL(url) {
     console.log("setting save url: " + url)
     now = new Date().getTime();
@@ -29,20 +35,16 @@ function setSavedURL(url) {
     });
 }
 
-function checkURL(parts) {
-    if(parts.length < 2) return; 
-    
-    url = parts[1];
-
+function checkURL(url, success, fail) {
     console.log("checkURL: " + url)
 
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
             if(xhr.status !== 200) {
-                banURL(url);
+                fail(url);
             } else {
-                setSavedURL(url);
+                success(url);
             }
         }
     } 
@@ -51,17 +53,112 @@ function checkURL(parts) {
     xhr.send(null);
 }
 
-chrome.runtime.onInstalled.addListener(function() {
-    chrome.declarativeContent.onPageChanged.removeRules(undefined, function() {
-        chrome.declarativeContent.onPageChanged.addRules([{
-          conditions: [new chrome.declarativeContent.PageStateMatcher({
-            pageUrl: {urlContains: ''},
-          })
-          ],
-              actions: [new chrome.declarativeContent.ShowPageAction()]
-        }]);
-      });
-  });
+function advanceToTPB(url) {
+    chrome.tabs.create({
+        url: url
+    });
+    checkURL(url, setSavedURL, banURL);
+}
+
+function withStorage(callback) {
+    chrome.storage.local.get({
+        'bannedList': [],
+        'saved_url': "",
+        "saved_url_time": 0
+    }, callback)
+}
+
+function resolveBySaved(storage) {
+    savedUrl = storage['saved_url'];
+    savedUrlTime = storage['saved_url_time'];
+    banned = storage['bannedList'];
+    now = new Date().getTime();
+    if(((now - savedUrlTime) < 360000) && (banned.indexOf(savedUrl) === -1)) {
+        console.log("resolved url from saved_url: " + savedUrl);
+        advanceToTPB(savedUrl);
+        return true;
+    } 
+    return false;
+} 
+
+function resolveByLookup(storage) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if(xhr.status === 200) {
+                handleProxyBayDocument(xhr.responseXML, storage, advanceToTPB);
+            } else {
+                alert("Proxy List Down");
+            }
+        }
+    } 
+    xhr.open('GET', 'https://proxybay.github.io/');
+    xhr.responseType = "document";
+    xhr.timeout = 2000;
+    xhr.send(null);
+}
+
+function quietLookup(storage) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if(xhr.status === 200) {
+                handleProxyBayDocument(xhr.responseXML, storage, function(url) {
+                    checkURL(url, setSavedURL, function(url) {
+                        banURL(url, function() {
+                            withStorage(quietLookup);
+                        });
+                    });
+                });
+            }
+        }
+    } 
+    xhr.open('GET', 'https://proxybay.github.io/');
+    xhr.responseType = "document";
+    xhr.timeout = 2000;
+    xhr.send(null);
+}
+
+function handleProxyBayDocument(doc, storage, callback) {
+    bannedList = storage['bannedList'];
+    proxyList = doc.getElementById('proxyList').rows;
+    fastestTime = 999999;
+    fastestProxy = "";
+    for(var i = 1 ; i < proxyList.length ; i++) {
+        theRow = proxyList[i];
+        speed = theRow.getElementsByClassName('speed')[0].innerText 
+        if(speed === 'N/A') {
+            continue;
+        }
+
+        proxyUrl = theRow.cells[0].getElementsByTagName('a')[0].href;
+
+        if(bannedList.indexOf(proxyUrl) !== -1) {
+            console.log("skipping banned proxy: " + proxyUrl);
+            continue;
+        }
+
+        if(speed < fastestTime) {
+            fastestTime = speed;
+            fastestProxy = proxyUrl
+        }
+    }
+
+    if(fastestProxy === "") {
+        alert("No available proxies for the pirate bay");
+    } else {
+        console.log("resolved proxy by lookup: " + fastestProxy)
+        callback(fastestProxy);
+    }
+}
+
+function resolveProxy(storage) {
+    resolveBySaved(storage) || resolveByLookup(storage)
+}
+
+chrome.browserAction.onClicked.addListener(function(tab) {
+    withStorage(resolveProxy);
+});
 
 chrome.extension.onConnect.addListener(function(port) {
     port.onMessage.addListener(function(msg) {
@@ -70,6 +167,10 @@ chrome.extension.onConnect.addListener(function(port) {
             checkURL(parts);
         } else if(parts[0] === "unbanURL") {
             unbanURL(parts[1]);
+        } else if(parts[0] === "clearSaved") {
+            clearSaved();
         }
     });
 });
+
+withStorage(quietLookup);

@@ -9,6 +9,17 @@ function remove(url) {
     window.location.reload();
 }
 
+function clearSavedURL() {
+    message = "clearSaved"
+
+    port = chrome.extension.connect({
+        name: "clearSaved"
+    });
+    port.postMessage(message);
+
+    window.location.reload();
+}
+
 function addTableRow(url) {
     rowEle = document.createElement('tr');
     data1Ele = document.createElement('td');
@@ -50,3 +61,4 @@ function loadBanned() {
 }
 
 loadBanned();
+document.getElementById('clearSaved').onclick = clearSavedURL;
