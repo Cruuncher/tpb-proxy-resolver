@@ -1,1 +1,7 @@
 # tpb-proxy-resolver
+
+This is an extension for Google Chrome which adds a toolbar button for opening a working proxy to the pirate bay. 
+
+The list of proxies is scraped from https://proxybay.github.io/. The proxy with the smallest number in the speed column is used. 
+
+The extension automatically builds and maintains a banlist of proxies. Given that ISPs can ban proxies, they may work for others and not you. If a timeout of 5 seconds is experienced while attempting to access a proxy, it will automatically be added to the banlist and will be ignored the next time the action button is clicked. 
