@@ -4,15 +4,28 @@ let error = document.getElementById('error');
 let bannedLoaded = false; 
 let bannedList = []
 
-function loadBanned() {
-    chrome.storage.local.get({"banned_urls": []}, function(items) {
+function loadStorage() {
+    chrome.storage.local.get({
+        "banned_urls": [],
+        "saved_url": "",
+        "saved_url_time": 0
+    }, function(items) {
         bannedLoaded = true;
         bannedList = items['banned_urls']
         console.log("banlist: " + bannedList)
+        now = new Date().getTime();
+        if(now - items['saved_url_time'] < 3600) {
+            if(bannedList.indexOf(items['saved_url']) !== -1) {
+                advanceToTPB(items['saved_url']);
+                return;
+            }
+        }
+
+        loadFromProxyBay();
     });
 }
 
-function popupLoad() {
+function loadFromProxyBay() {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
@@ -30,9 +43,6 @@ function popupLoad() {
 }
 
 function handleProxyBayDocument(doc) {
-    if(!bannedLoaded) {
-        console.log("how the fuck did this not load from local storage yet?");
-    }
     proxyList = doc.getElementById('proxyList').rows;
     fastestTime = 999999;
     fastestProxy = "";
@@ -84,6 +94,5 @@ function checkURL(url) {
     port.postMessage(message);
 }
 
-loadBanned();
-popupLoad();
+loadStorage();
 

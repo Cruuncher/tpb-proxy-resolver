@@ -20,6 +20,15 @@ function unbanURL(url) {
     });
 }
 
+function setSavedURL(url) {
+    console.log("setting save url: " + url)
+    now = new Date().getTime();
+    chrome.storage.local.set({
+        "saved_url": url,
+        "saved_url_time": now
+    });
+}
+
 function checkURL(parts) {
     if(parts.length < 2) return; 
     
@@ -31,7 +40,9 @@ function checkURL(parts) {
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
             if(xhr.status !== 200) {
-                banURL(url)
+                banURL(url);
+            } else {
+                setSavedURL(url);
             }
         }
     } 

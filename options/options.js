@@ -32,12 +32,20 @@ function loadTable(bannedUrls) {
     }
 }
 
+function showSavedURL(savedUrl) {
+    document.getElementById('savedURL').value = savedUrl;
+}
+
 function loadBanned() {
-    chrome.storage.local.get({"banned_urls": []}, function(items) {
+    chrome.storage.local.get({
+        "banned_urls": [],
+        "saved_url": ""
+    }, function(items) {
         bannedLoaded = true;
         bannedList = items['banned_urls']
         console.log("banlist: " + bannedList)
         loadTable(bannedList);
+        showSavedURL(items['saved_url']);
     });
 }
 
