@@ -20,6 +20,19 @@ function clearSavedURL() {
     window.location.reload();
 }
 
+function banURL() {
+    urlToBan = document.getElementById('banURL').value;
+
+    message = "banURL$$" + urlToBan
+
+    port = chrome.extension.connect({
+        name: "banURL"
+    });
+    port.postMessage(message);
+
+    window.location.reload();
+}
+
 function addTableRow(url) {
     rowEle = document.createElement('tr');
     data1Ele = document.createElement('td');
@@ -61,4 +74,6 @@ function loadBanned() {
 }
 
 loadBanned();
+
 document.getElementById('clearSaved').onclick = clearSavedURL;
+document.getElementById('doBanURL').onclick = banURL;

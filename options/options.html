@@ -7,7 +7,7 @@
   <body>
     <div>
       <label for="savedURL">Saved URL:</label>
-      <input id="savedURL" type="text" name="country" value="" readonly>
+      <input id="savedURL" type="text" value="" readonly>
       <button id="clearSaved">clear</button>
     </div>
     <h3>Banned URLs</h3>
@@ -15,6 +15,10 @@
         <tbody id="bannedTableBody">
         </tbody>
     </table>
+    <div>
+      <input id="banURL" type="text">
+      <button id="doBanURL">Ban URL</button>
+    </div>
   </body>
   <script src="options.js"></script>
 </html>

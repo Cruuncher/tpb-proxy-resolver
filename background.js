@@ -164,7 +164,7 @@ chrome.extension.onConnect.addListener(function(port) {
         } else if(parts[0] === "clearSaved") {
             clearSaved();
         } else if(parts[0] === "banURL") {
-            unbanURL(parts[1]);
+            banProxyURL(parts[1]);
         }
     });
 });
