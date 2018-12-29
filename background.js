@@ -1,12 +1,12 @@
-function banURL(url, callback = null) {
-    if(callback === null) {
-        callback = function () {};
-    }
-    chrome.storage.local.get({"banned_urls": []}, function(items) {
-        banned_urls = items['banned_urls'];
-        banned_urls.push(url);
-        chrome.storage.local.set({"banned_urls": banned_urls});
-    }, callback);
+function banProxyURL(url) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get({"banned_urls": []}, function(items) {
+            banned_urls = items['banned_urls'];
+            banned_urls.push(url);
+            console.log("new banned urls: " + banned_urls)
+            chrome.storage.local.set({"banned_urls": banned_urls}, resolve);
+        });
+    });
 }
 
 function unbanURL(url) {
@@ -35,34 +35,24 @@ function setSavedURL(url) {
     });
 }
 
-function checkURL(url, success, fail) {
-    console.log("checkURL: " + url)
-
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            if(xhr.status !== 200) {
-                fail(url);
-            } else {
-                success(url);
-            }
-        }
-    } 
-    xhr.open('GET', url);
-    xhr.timeout = 5000;
-    xhr.send(null);
-}
-
-function advanceToTPB(url) {
+async function advanceToTPB(url) {
     chrome.tabs.create({
         url: url
     });
-    checkURL(url, setSavedURL, banURL);
+
+    try {
+        await checkProxyURL(url);
+        setSavedURL(url);
+    } catch(error) {
+        console.log("Could not load proxy(" + url + "). Error: " + error)
+        await banProxyURL(fastestProxy);
+        withStorage(quietLookup);
+    }
 }
 
 function withStorage(callback) {
     chrome.storage.local.get({
-        'bannedList': [],
+        'banned_urls': [],
         'saved_url': "",
         "saved_url_time": 0
     }, callback)
@@ -71,7 +61,7 @@ function withStorage(callback) {
 function resolveBySaved(storage) {
     savedUrl = storage['saved_url'];
     savedUrlTime = storage['saved_url_time'];
-    banned = storage['bannedList'];
+    banned = storage['banned_urls'];
     now = new Date().getTime();
     if(((now - savedUrlTime) < 360000) && (banned.indexOf(savedUrl) === -1)) {
         console.log("resolved url from saved_url: " + savedUrl);
@@ -81,50 +71,51 @@ function resolveBySaved(storage) {
     return false;
 } 
 
-function resolveByLookup(storage) {
-    proxyBayRequest(storage, function(doc) {
-        handleProxyBayDocument(doc, storage, advanceToTPB);
-    }, function(status) {
-        alert("Proxy List Down. Status: " + status);
-    });
+async function resolveByLookup(storage) {
+    banlist = storage['banned_urls'];
+
+    proxyBayDoc = await proxyBay();
+    fastestProxy = fastestProxyInDocument(proxyBayDoc, banlist);
+    advanceToTPB(fastestProxy);
 }
 
-function proxyBayRequest(storage, success, fail=null) {
-    if(fail === null){
-        fail = function () {};
+function promiseRequest(url, timeout=5000) {
+    return new Promise((resolve, reject) => {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url);
+        xhr.timeout = timeout;
+        xhr.responseType = "document"
+        xhr.onload = () => resolve(xhr.responseXML);
+        xhr.onerror = () => reject(xhr.statusText);
+        xhr.send();
+    }) 
+}
+
+function checkProxyURL(url) {
+    return promiseRequest(url);
+}
+
+function proxyBay() {
+    return promiseRequest('https://proxybay.github.io/');
+}
+
+async function quietLookup(storage) {
+    banlist = storage['banned_urls'];
+
+    proxyBayDoc = await proxyBay();
+    fastestProxy = fastestProxyInDocument(proxyBayDoc, banlist);
+
+    try {
+        await checkProxyURL(fastestProxy);
+        setSavedURL(fastestProxy);
+    } catch(error) {
+        console.log("Could not load proxy(" + fastestProxy + "). Error: " + error)
+        await banProxyURL(fastestProxy);
+        withStorage(quietLookup);
     }
-
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            if(xhr.status === 200) {
-                success(xhr.responseXML);
-            } else {
-                fail(xhr.status);
-            }
-        }
-    } 
-    xhr.open('GET', 'https://proxybay.github.io/');
-    xhr.responseType = "document";
-    xhr.timeout = 2000;
-    xhr.send(null);
-
 }
 
-function quietLookup(storage) {
-    proxyBayRequest(storage, function(doc) {
-        handleProxyBayDocument(doc, storage, function(url) {
-            checkURL(url, setSavedURL, function(url) {
-                banURL(url, function() {
-                    withStorage(quietLookup);
-                });
-            });
-        });
-    });
-}
-
-function handleProxyBayDocument(doc, storage, callback) {
-    bannedList = storage['bannedList'];
+function fastestProxyInDocument(doc, banlist) {
     proxyList = doc.getElementById('proxyList').rows;
     fastestTime = 999999;
     fastestProxy = "";
@@ -137,7 +128,7 @@ function handleProxyBayDocument(doc, storage, callback) {
 
         proxyUrl = theRow.cells[0].getElementsByTagName('a')[0].href;
 
-        if(bannedList.indexOf(proxyUrl) !== -1) {
+        if(banlist.indexOf(proxyUrl) !== -1) {
             console.log("skipping banned proxy: " + proxyUrl);
             continue;
         }
@@ -148,16 +139,17 @@ function handleProxyBayDocument(doc, storage, callback) {
         }
     }
 
-    if(fastestProxy === "") {
-        alert("No available proxies for the pirate bay");
-    } else {
-        console.log("resolved proxy by lookup: " + fastestProxy)
-        callback(fastestProxy);
+    if(!fastestProxy) {
+        throw "no_working_proxy";
     }
+
+    return fastestProxy;
 }
 
-function resolveProxy(storage) {
-    resolveBySaved(storage) || resolveByLookup(storage)
+async function resolveProxy(storage) {
+    if(!resolveBySaved(storage)) {
+        resolveByLookup(storage);
+    }
 }
 
 chrome.browserAction.onClicked.addListener(function(tab) {
@@ -167,12 +159,12 @@ chrome.browserAction.onClicked.addListener(function(tab) {
 chrome.extension.onConnect.addListener(function(port) {
     port.onMessage.addListener(function(msg) {
         parts = msg.split("$$");
-        if(parts[0] === "checkURL") {
-            checkURL(parts);
-        } else if(parts[0] === "unbanURL") {
+        if(parts[0] === "unbanURL") {
             unbanURL(parts[1]);
         } else if(parts[0] === "clearSaved") {
             clearSaved();
+        } else if(parts[0] === "banURL") {
+            unbanURL(parts[1]);
         }
     });
 });
