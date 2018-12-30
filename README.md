@@ -1,6 +1,6 @@
 # tpb-proxy-resolver
 
-This is an extension for Google Chrome which adds a toolbar button for opening a working proxy to the pirate bay. 
+This is a browser extension which adds a toolbar button for opening a working proxy to the pirate bay. Currently supported on Google Chrome and Firefox. 
 
 The list of proxies is scraped from https://proxybay.github.io/. The proxy with the smallest number in the speed column is used. 
 
