@@ -1,16 +1,16 @@
 function banProxyURL(url) {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get({"banned_urls": []}, function(items) {
+        {{$TOPLEVEL}}.storage.local.get({"banned_urls": []}, function(items) {
             banned_urls = items['banned_urls'];
             banned_urls.push(url);
             console.log("new banned urls: " + banned_urls)
-            chrome.storage.local.set({"banned_urls": banned_urls}, resolve);
+            {{$TOPLEVEL}}.storage.local.set({"banned_urls": banned_urls}, resolve);
         });
     });
 }
 
 function unbanURL(url) {
-    chrome.storage.local.get({"banned_urls": []}, function(items) {
+    {{$TOPLEVEL}}.storage.local.get({"banned_urls": []}, function(items) {
         banned_urls = items['banned_urls'];
         new_banned_urls = []; 
         for(var i = 0 ; i < banned_urls.length ; i++) {
@@ -18,25 +18,25 @@ function unbanURL(url) {
                 new_banned_urls.push(banned_urls[i])
             }
         }
-        chrome.storage.local.set({"banned_urls": new_banned_urls});
+        {{$TOPLEVEL}}.storage.local.set({"banned_urls": new_banned_urls});
     });
 }
 
 function clearSaved() {
-    chrome.storage.local.remove(["saved_url", "saved_url_time"]);
+    {{$TOPLEVEL}}.storage.local.remove(["saved_url", "saved_url_time"]);
 }
 
 function setSavedURL(url) {
     console.log("setting save url: " + url)
     now = new Date().getTime();
-    chrome.storage.local.set({
+    {{$TOPLEVEL}}.storage.local.set({
         "saved_url": url,
         "saved_url_time": now
     });
 }
 
 async function advanceToTPB(url) {
-    chrome.tabs.create({
+    {{$TOPLEVEL}}.tabs.create({
         url: url
     });
 
@@ -51,7 +51,7 @@ async function advanceToTPB(url) {
 }
 
 function withStorage(callback) {
-    chrome.storage.local.get({
+    {{$TOPLEVEL}}.storage.local.get({
         'banned_urls': [],
         'saved_url': "",
         "saved_url_time": 0
@@ -152,11 +152,11 @@ async function resolveProxy(storage) {
     }
 }
 
-chrome.browserAction.onClicked.addListener(function(tab) {
+{{$TOPLEVEL}}.browserAction.onClicked.addListener(function(tab) {
     withStorage(resolveProxy);
 });
 
-chrome.extension.onConnect.addListener(function(port) {
+{{$TOPLEVEL}}.{{$RUNTIME_NAMESPACE}}.onConnect.addListener(function(port) {
     port.onMessage.addListener(function(msg) {
         parts = msg.split("$$");
         if(parts[0] === "unbanURL") {
