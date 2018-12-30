@@ -1,7 +1,7 @@
 function remove(url) {
     message = "unbanURL$$" + url
 
-    port = chrome.extension.connect({
+    port = {{$TOPLEVEL}}.{{$RUNTIME_NAMESPACE}}.connect({
         name: "unbanURL"
     });
     port.postMessage(message);
@@ -12,7 +12,7 @@ function remove(url) {
 function clearSavedURL() {
     message = "clearSaved"
 
-    port = chrome.extension.connect({
+    port = {{$TOPLEVEL}}.{{$RUNTIME_NAMESPACE}}.connect({
         name: "clearSaved"
     });
     port.postMessage(message);
@@ -25,7 +25,7 @@ function banURL() {
 
     message = "banURL$$" + urlToBan
 
-    port = chrome.extension.connect({
+    port = {{$TOPLEVEL}}.{{$RUNTIME_NAMESPACE}}.connect({
         name: "banURL"
     });
     port.postMessage(message);
@@ -61,7 +61,7 @@ function showSavedURL(savedUrl) {
 }
 
 function loadBanned() {
-    chrome.storage.local.get({
+    {{$TOPLEVEL}}.storage.local.get({
         "banned_urls": [],
         "saved_url": ""
     }, function(items) {
