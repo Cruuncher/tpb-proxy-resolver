@@ -20,3 +20,4 @@ If you wish to install a past version, or a new release which has not passed rev
 2. Extract the folder tpb-proxy-resolver-[VERSION NUM] onto your computer 
 3. Visit chrome://extensions and turn on developer mode. 
 4. Click "Load unpacked" and select the extracted folder. This will install the extension.
+
